@@ -72,9 +72,14 @@ def get_repository_info(owner, repo, token) -> dict:
     pullRequestsCount = result['data']['repository']['pullRequests']['totalCount']
     readme = result['data']['repository']['object']['text']
     owner = result['data']['repository']['owner']['login']
-    licenseName = result['data']['repository']['licenseInfo']['name']
-    licenseSpdxId = result['data']['repository']['licenseInfo']['spdxId']
-    licenseUrl = result['data']['repository']['licenseInfo']['url']
+    if result['data']['repository']['licenseInfo'] is None:
+        licenseName = None
+        licenseSpdxId = None
+        licenseUrl = None
+    else:
+        licenseName = result['data']['repository']['licenseInfo']['name']
+        licenseSpdxId = result['data']['repository']['licenseInfo']['spdxId']
+        licenseUrl = result['data']['repository']['licenseInfo']['url']
 
     # get all rate limit info
     login = result['data']['viewer']['login']
