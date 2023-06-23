@@ -85,11 +85,12 @@ def get_repository_info(owner, repo, token) -> dict:
     rate_limit_info = {'login': login, 'limit': limit, 'cost': cost,
                        'remaining': remaining, 'resetAt': resetAt}
 
-    data_dict = {'name': name, 'description': description, 'owner': owner, 'licenseName': licenseName, 
+    data_dict = {'owner':owner, 'repo':repo,'name': name, 'description': description, 'owner': owner, 'licenseName': licenseName, 
                 'licenseSpdxId': licenseSpdxId, 'licenseUrl': licenseUrl, 'shortDescriptionHTML': shortDescriptionHTML,
                 'repourl': repourl, 'createdAt': createdAt, 'updatedAt': updatedAt, 'pushedAt': pushedAt,
                 'forkCount': forkCount, 'stargazerCount': stargazerCount, 'issuesCount': issuesCount,
                 'pullRequestsCount': pullRequestsCount, 'readme': readme}
+
     return data_dict, rate_limit_info
 
 
@@ -173,6 +174,13 @@ def get_all_commits(owner, repo, token, since) -> pd.DataFrame:
         cursor = history['pageInfo']['endCursor']
     df_out = pd.DataFrame(df_rows, columns=['oid', 'messageHeadline', 'author_name', 'author_email', 'author_user_login', 'author_user_location', 'author_user_company',
                           'author_user_pronouns', 'author_user_bio', 'author_user_websiteUrl', 'author_user_twitterUsername', 'author_date', 'additions', 'deletions'])
+    # add repo name and owner to the dataframe
+    df_out['repo_name'] = repo
+    df_out['repo_owner'] = owner
+    #Put owner and repo name in the first two columns
+    cols = df_out.columns.tolist()
+    cols = cols[-2:] + cols[:-2]
+    df_out = df_out[cols]
     return df_out
 
 
@@ -252,26 +260,40 @@ class collect:
         best_key = max(
             self.keys_dict, key=lambda k: self.keys_dict[k]['remaining'])
         return best_key
+    
+    def getBestKeys(self, n):
+        """
+        This function returns the n keys with the highest remaining requests limit and greater than 10 remaining requests
+        """
+        keys_desc = sorted(self.keys_dict, key=lambda k: self.keys_dict[k]['remaining'], reverse=True)
+        # select all keys with remaining requests greater than 10
+        keys_desc = [k for k in keys_desc if self.keys_dict[k]['remaining'] > 10]
+        if len(keys_desc) < n: #if length of keys_desc is less than n, duplicate the list to return n keys
+            keys_desc = keys_desc * (n//len(keys_desc) + 1)
+        return keys_desc[:n]
+            
 
-    def collectCommits(self, owner, repo, since="2007-01-01T00:00:00Z"):
+    def collectCommits(self, owner, repo, token=None, since="2007-01-01T00:00:00Z"):
         """
         This function collects all commits from a repo since a given date and returns a dataframe
         owner: owner of the repo
         repo: name of the repo
         since: date in ISO 8601 format
         """
-        token = self.getBestKey()
+        if token is None:
+            token = self.getBestKey()
         df = get_all_commits(owner, repo, token, since)
         self.refreshKeysHealth()
         return df
 
-    def getRepoInfo(self, owner, repo):
+    def getRepoInfo(self, owner, repo, token=None):
         """
         This function collects all commits from a repo since a given date and returns a dataframe
         owner: owner of the repo
         repo: name of the repo
         """
-        token = self.getBestKey()
+        if token is None:
+            token = self.getBestKey()
         d, rl_dict = get_repository_info(owner, repo, token)
         self.keys_dict[token] = rl_dict
         return d
