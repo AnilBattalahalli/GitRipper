@@ -4,8 +4,10 @@ from random import choice
 import pandas as pd
 
 
-# return a dictionary of repository info
-def get_repository_info(owner, repo, token):
+def get_repository_info(owner, repo, token) -> dict:
+    """
+    Get the repository info from github api
+    """
     url = 'https://api.github.com/graphql'
     headers = {'Authorization': f'Bearer {token}'}
 
@@ -82,7 +84,10 @@ def get_repository_info(owner, repo, token):
     return data_dict, rate_limit_info
 
 
-def get_all_commits(owner, repo, token, since):
+def get_all_commits(owner, repo, token, since) -> pd.DataFrame:
+    """
+    Get all commits from a repository since a given date
+    """
     url = 'https://api.github.com/graphql'
     headers = {'Authorization': f'Bearer {token}'}
     query = """
@@ -163,6 +168,9 @@ def get_all_commits(owner, repo, token, since):
 
 
 def githubKeysInfo(token):
+    """
+    Get the rate limit info from github api for a token
+    """
     url = 'https://api.github.com/graphql'
     headers = {'Authorization': f'Bearer {token}'}
 
@@ -203,6 +211,9 @@ def githubKeysInfo(token):
 
 class collect:
     def __init__(self, keys_list) -> None:
+        """
+        keys_list: list of tuples (username, key)
+        """
         d = dict()
         for k in keys_list:
             r = githubKeysInfo(k[1])
@@ -214,11 +225,16 @@ class collect:
         self.keys_list = list(self.keys_dict.keys())
 
     def refreshKeysHealth(self):
+        """
+        This function refreshes the health of all keys in the keys_dict
+        """
         for k in self.keys_dict.keys():
             self.keys_dict[k] = githubKeysInfo(k)
 
     def getBestKey(self):
-        # return the key with the highest remaining rate limit and if the best key has less than 10 remaining requests, wait for an hour
+        """
+        This function returns the key with the highest remaining requests limit and waits for an hour if the limit is less than 10
+        """
         best_key = max(
             self.keys_dict, key=lambda k: self.keys_dict[k]['remaining'])
         if self.keys_dict[best_key]['remaining'] < 10:
@@ -229,12 +245,23 @@ class collect:
         return best_key
 
     def collectCommits(self, owner, repo, since="2007-01-01T00:00:00Z"):
+        """
+        This function collects all commits from a repo since a given date and returns a dataframe
+        owner: owner of the repo
+        repo: name of the repo
+        since: date in ISO 8601 format
+        """
         token = self.getBestKey()
         df = get_all_commits(owner, repo, token, since)
         self.refreshKeysHealth()
         return df
 
     def getRepoInfo(self, owner, repo):
+        """
+        This function collects all commits from a repo since a given date and returns a dataframe
+        owner: owner of the repo
+        repo: name of the repo
+        """
         token = self.getBestKey()
         d, rl_dict = get_repository_info(owner, repo, token)
         self.keys_dict[token] = rl_dict
