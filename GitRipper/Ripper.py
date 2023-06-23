@@ -268,6 +268,8 @@ class collect:
         keys_desc = sorted(self.keys_dict, key=lambda k: self.keys_dict[k]['remaining'], reverse=True)
         # select all keys with remaining requests greater than 10
         keys_desc = [k for k in keys_desc if self.keys_dict[k]['remaining'] > 10]
+        if len(keys_desc) == 0:
+            time.sleep(3600)
         if len(keys_desc) < n: #if length of keys_desc is less than n, duplicate the list to return n keys
             keys_desc = keys_desc * (n//len(keys_desc) + 1)
         return keys_desc[:n]
