@@ -34,6 +34,11 @@ def get_repository_info(owner, repo, token) -> dict:
         owner {
           login
         }
+        licenseInfo {
+            name
+            spdxId
+            url
+            }
         object(expression: "HEAD:README.md") {
           ... on Blob {
             text
@@ -67,6 +72,9 @@ def get_repository_info(owner, repo, token) -> dict:
     pullRequestsCount = result['data']['repository']['pullRequests']['totalCount']
     readme = result['data']['repository']['object']['text']
     owner = result['data']['repository']['owner']['login']
+    licenseName = result['data']['repository']['licenseInfo']['name']
+    licenseSpdxId = result['data']['repository']['licenseInfo']['spdxId']
+    licenseUrl = result['data']['repository']['licenseInfo']['url']
 
     # get all rate limit info
     login = result['data']['viewer']['login']
@@ -77,10 +85,11 @@ def get_repository_info(owner, repo, token) -> dict:
     rate_limit_info = {'login': login, 'limit': limit, 'cost': cost,
                        'remaining': remaining, 'resetAt': resetAt}
 
-    data_dict = {'name': name, 'description': description, 'owner': owner, 'shortDescriptionHTML': shortDescriptionHTML,
-                 'repourl': repourl, 'createdAt': createdAt, 'updatedAt': updatedAt, 'pushedAt': pushedAt,
-                 'forkCount': forkCount, 'stargazerCount': stargazerCount, 'issuesCount': issuesCount,
-                 'pullRequestsCount': pullRequestsCount, 'readme': readme}
+    data_dict = {'name': name, 'description': description, 'owner': owner, 'licenseName': licenseName, 
+                'licenseSpdxId': licenseSpdxId, 'licenseUrl': licenseUrl, 'shortDescriptionHTML': shortDescriptionHTML,
+                'repourl': repourl, 'createdAt': createdAt, 'updatedAt': updatedAt, 'pushedAt': pushedAt,
+                'forkCount': forkCount, 'stargazerCount': stargazerCount, 'issuesCount': issuesCount,
+                'pullRequestsCount': pullRequestsCount, 'readme': readme}
     return data_dict, rate_limit_info
 
 
