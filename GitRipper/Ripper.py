@@ -3,6 +3,15 @@ import time
 from random import choice
 import pandas as pd
 
+def get_item(d, keys):
+    for k in keys:
+        if d is None:
+            return None
+        if k in d:
+            d = d[k]
+        else:
+            return None
+    return d
 
 def get_repository_info(owner, repo, token) -> dict:
     """
@@ -58,35 +67,38 @@ def get_repository_info(owner, repo, token) -> dict:
     """ % (owner, repo)
 
     response = requests.post(url, json={'query': query}, headers=headers)
+    if response.status_code != 200:
+        print(response.text)
+        data_dict = {'owner':owner, 'repo':repo,'name': None, 'description': None, 'owner': None, 'licenseName': None,
+                'licenseSpdxId': None, 'licenseUrl': None, 'shortDescriptionHTML': None,
+                'repourl': None, 'createdAt': None, 'updatedAt': None, 'pushedAt': None,
+                'forkCount': None, 'stargazerCount': None, 'issuesCount': None,
+                'pullRequestsCount': None, 'readme': None}
+        return data_dict, None
     result = response.json()
-    name = result['data']['repository']['name']
-    description = result['data']['repository']['description']
-    shortDescriptionHTML = result['data']['repository']['shortDescriptionHTML']
-    repourl = result['data']['repository']['url']
-    createdAt = result['data']['repository']['createdAt']
-    updatedAt = result['data']['repository']['updatedAt']
-    pushedAt = result['data']['repository']['pushedAt']
-    forkCount = result['data']['repository']['forkCount']
-    stargazerCount = result['data']['repository']['stargazerCount']['totalCount']
-    issuesCount = result['data']['repository']['issues']['totalCount']
-    pullRequestsCount = result['data']['repository']['pullRequests']['totalCount']
-    readme = result['data']['repository']['object']['text']
-    owner = result['data']['repository']['owner']['login']
-    if result['data']['repository']['licenseInfo'] is None:
-        licenseName = None
-        licenseSpdxId = None
-        licenseUrl = None
-    else:
-        licenseName = result['data']['repository']['licenseInfo']['name']
-        licenseSpdxId = result['data']['repository']['licenseInfo']['spdxId']
-        licenseUrl = result['data']['repository']['licenseInfo']['url']
+    name = get_item(result, ['data','repository','name'])
+    description = get_item(result,['data','repository','description'])
+    shortDescriptionHTML = get_item(result,['data','repository','shortDescriptionHTML'])
+    repourl = get_item(result,['data','repository','url'])
+    createdAt = get_item(result,['data','repository','createdAt'])
+    updatedAt = get_item(result,['data','repository','updatedAt'])
+    pushedAt = get_item(result,['data','repository','pushedAt'])
+    forkCount = get_item(result,['data','repository','forkCount'])
+    stargazerCount = get_item(result,['data','repository','stargazerCount','totalCount'])
+    issuesCount = get_item(result,['data','repository','issues','totalCount'])
+    pullRequestsCount = get_item(result,['data','repository','pullRequests','totalCount'])
+    readme = get_item(result,['data','repository','object','text'])
+    owner = get_item(result,['data','repository','owner','login'])
+    licenseName = get_item(result,['data','repository','licenseInfo','name'])
+    licenseSpdxId = get_item(result,['data','repository','licenseInfo','spdxId'])
+    licenseUrl = get_item(result,['data','repository','licenseInfo','url'])
 
     # get all rate limit info
-    login = result['data']['viewer']['login']
-    limit = result['data']['rateLimit']['limit']
-    cost = result['data']['rateLimit']['cost']
-    remaining = result['data']['rateLimit']['remaining']
-    resetAt = result['data']['rateLimit']['resetAt']
+    login = get_item(result,['data','viewer','login'])
+    limit = get_item(result,['data','rateLimit','limit'])
+    cost = get_item(result,['data','rateLimit','cost'])
+    remaining = get_item(result,['data','rateLimit','remaining'])
+    resetAt = get_item(result,['data','rateLimit','resetAt'])
     rate_limit_info = {'login': login, 'limit': limit, 'cost': cost,
                        'remaining': remaining, 'resetAt': resetAt}
 
@@ -154,29 +166,27 @@ def get_all_commits(owner, repo, token, since) -> pd.DataFrame:
         response = requests.post(
             url, json={'query': query, 'variables': variables}, headers=headers)
         result = response.json()
-        history = result['data']['repository']['defaultBranchRef']['target']['history']
-        for edge in history['edges']:
-            node = edge['node']
-            if node['author']['user'] is None:
-                username = None
-                location = None
-                company = None
-                pronouns = None
-                bio = None
-                websiteUrl = None
-                twitterUsername = None
-            else:
-                username = node['author']['user']['login']
-                location = node['author']['user']['location']
-                company = node['author']['user']['company']
-                pronouns = node['author']['user']['pronouns']
-                bio = node['author']['user']['bio']
-                websiteUrl = node['author']['user']['websiteUrl']
-                twitterUsername = node['author']['user']['twitterUsername']
-            df_rows.append((node['oid'], node['messageHeadline'], node['author']['name'], node['author']['email'], username, location,
-                           company, pronouns, bio, websiteUrl, twitterUsername, node['author']['date'], node['additions'], node['deletions']))
-        has_next_page = history['pageInfo']['hasNextPage']
-        cursor = history['pageInfo']['endCursor']
+        history = get_item(result,['data','repository','defaultBranchRef','target','history'])
+        hists = get_item(history, ['edges'])
+        if hists is None:
+            hists = []
+        for edge in hists:
+            node = get_item(edge,['node'])
+            username = get_item(node,['author','user','login'])
+            location = get_item(node,['author','user','location'])
+            company = get_item(node,['author','user','company'])
+            pronouns = get_item(node,['author','user','pronouns'])
+            bio = get_item(node,['author','user','bio'])
+            websiteUrl = get_item(node,['author','user','websiteUrl'])
+            twitterUsername = get_item(node,['author','user','twitterUsername'])
+            df_rows.append([get_item(node,['oid']), get_item(node,['messageHeadline']), 
+                            get_item(node,['author','name']), 
+                            get_item(node,['author','email']), username, location,
+                           company, pronouns, bio, websiteUrl, twitterUsername, 
+                           get_item(node['author','date']), get_item(node,['additions']), 
+                           get_item(node, ['deletions'])])
+        has_next_page = get_item(history,['pageInfo','hasNextPage'])
+        cursor = get_item(history,['pageInfo','endCursor'])
     df_out = pd.DataFrame(df_rows, columns=['oid', 'messageHeadline', 'author_name', 'author_email', 'author_user_login', 'author_user_location', 'author_user_company',
                           'author_user_pronouns', 'author_user_bio', 'author_user_websiteUrl', 'author_user_twitterUsername', 'author_date', 'additions', 'deletions'])
     # add repo name and owner to the dataframe
@@ -218,11 +228,11 @@ def githubKeysInfo(token):
             print(f"Error: {result['errors'][0]['message']}")
             return -1
         else:
-            login = result['data']['viewer']['login']
-            limit = result['data']['rateLimit']['limit']
-            cost = result['data']['rateLimit']['cost']
-            remaining = result['data']['rateLimit']['remaining']
-            resetAt = result['data']['rateLimit']['resetAt']
+            login = get_item(result,['data','viewer','login'])
+            limit = get_item(result,['data','rateLimit','limit'])
+            cost = get_item(result, ['data','rateLimit','cost'])
+            remaining = get_item(result, ['data','rateLimit','remaining'])
+            resetAt = get_item(result, ['data','rateLimit','resetAt'])
             return_dict = {'login': login, 'limit': limit,
                            'cost': cost, 'remaining': remaining, 'resetAt': resetAt}
             return return_dict
