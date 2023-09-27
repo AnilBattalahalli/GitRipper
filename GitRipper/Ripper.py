@@ -74,7 +74,7 @@ def get_repository_info(owner, repo, token) -> dict:
                 'repourl': None, 'createdAt': None, 'updatedAt': None, 'pushedAt': None,
                 'forkCount': None, 'stargazerCount': None, 'issuesCount': None,
                 'pullRequestsCount': None, 'readme': None}
-        return data_dict, None
+        return None, None
     result = response.json()
     name = get_item(result, ['data','repository','name'])
     description = get_item(result,['data','repository','description'])
@@ -165,6 +165,9 @@ def get_all_commits(owner, repo, token, since) -> pd.DataFrame:
         variables = {'cursor': cursor}
         response = requests.post(
             url, json={'query': query, 'variables': variables}, headers=headers)
+        if response.status_code != 200:
+            print(response.text)
+            return None
         result = response.json()
         history = get_item(result,['data','repository','defaultBranchRef','target','history'])
         hists = get_item(history, ['edges'])
@@ -183,7 +186,7 @@ def get_all_commits(owner, repo, token, since) -> pd.DataFrame:
                             get_item(node,['author','name']), 
                             get_item(node,['author','email']), username, location,
                            company, pronouns, bio, websiteUrl, twitterUsername, 
-                           get_item(node['author','date']), get_item(node,['additions']), 
+                           get_item(node, ['author','date']), get_item(node,['additions']), 
                            get_item(node, ['deletions'])])
         has_next_page = get_item(history,['pageInfo','hasNextPage'])
         cursor = get_item(history,['pageInfo','endCursor'])
