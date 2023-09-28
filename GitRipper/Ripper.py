@@ -4,6 +4,15 @@ from random import choice
 import pandas as pd
 
 def get_item(d, keys):
+    """
+    Helper function to get a value from a nested dictionary
+    The function returns None if the key is not found
+    Args:
+        d (dict)        : dictionary
+        keys (list)     : list of keys to traverse the dictionary
+    Returns:
+        value of the key if found, None otherwise
+    """
     for k in keys:
         if d is None:
             return None
@@ -15,7 +24,14 @@ def get_item(d, keys):
 
 def get_repository_info(owner, repo, token) -> dict:
     """
-    Get the repository info from github api
+    Get the repository info from for a given owner and repo
+    Args:
+        owner (str)     : owner of the repository
+        repo (str)      : name of the repository
+        token (str)     : github token
+    Returns:
+        data_dict (dict): dictionary containing the repository info
+        rate_limit_info (dict): dictionary containing the rate limit info
     """
     url = 'https://api.github.com/graphql'
     headers = {'Authorization': f'Bearer {token}'}
@@ -113,7 +129,14 @@ def get_repository_info(owner, repo, token) -> dict:
 
 def get_all_commits(owner, repo, token, since) -> pd.DataFrame:
     """
-    Get all commits from a repository since a given date
+    Get all commits information from a repository since a given date
+    Args:
+        owner (str)     : owner of the repository
+        repo (str)      : name of the repository
+        token (str)     : github token
+        since (str)     : date in ISO 8601 format
+    Returns:
+        df_out (pd.DataFrame): dataframe containing the commits information
     """
     url = 'https://api.github.com/graphql'
     headers = {'Authorization': f'Bearer {token}'}
@@ -202,9 +225,13 @@ def get_all_commits(owner, repo, token, since) -> pd.DataFrame:
     return df_out
 
 
-def githubKeysInfo(token):
+def githubKeysInfo(token) -> dict:
     """
     Get the rate limit info from github api for a token
+    Args:
+        token (str)     : github token
+    Returns:
+        return_dict (dict): dictionary containing the rate limit info
     """
     url = 'https://api.github.com/graphql'
     headers = {'Authorization': f'Bearer {token}'}
@@ -247,7 +274,12 @@ def githubKeysInfo(token):
 class collect:
     def __init__(self, keys_list) -> None:
         """
-        keys_list: list of tuples (username, key)
+        This function initializes the class with a list of keys
+        If the key is valid, it adds the key to the keys_dict, otherwise it ignores it
+        Args:
+            keys_list (list): list of tuples containing the username and the API key
+        Returns:
+            None
         """
         d = dict()
         for k in keys_list:
@@ -259,16 +291,24 @@ class collect:
         self.keys_dict = d
         self.keys_list = list(self.keys_dict.keys())
 
-    def refreshKeysHealth(self):
+    def refreshKeysHealth(self) -> None:
         """
         This function refreshes the health of all keys in the keys_dict
+        Args:
+            None
+        Returns:
+            None
         """
         for k in self.keys_dict.keys():
             self.keys_dict[k] = githubKeysInfo(k)
 
-    def getBestKey(self):
+    def getBestKey(self) -> str:
         """
         This function returns the key with the highest remaining requests limit and waits for an hour if the limit is less than 10
+        Args:
+            None
+        Returns:
+            best_key (str): the key with the highest remaining requests limit
         """
         best_key = max(
             self.keys_dict, key=lambda k: self.keys_dict[k]['remaining'])
@@ -279,9 +319,14 @@ class collect:
             self.keys_dict, key=lambda k: self.keys_dict[k]['remaining'])
         return best_key
     
-    def getBestKeys(self, n):
+    def getBestKeys(self, n) -> list:
         """
         This function returns the n keys with the highest remaining requests limit and greater than 10 remaining requests
+        If the number of keys with remaining requests greater than 10 is less than n, the function duplicates the list of keys
+        Args:
+            n (int): number of keys to return
+        Returns:
+            keys_desc (list): list of keys with the highest remaining requests limit
         """
         keys_desc = sorted(self.keys_dict, key=lambda k: self.keys_dict[k]['remaining'], reverse=True)
         # select all keys with remaining requests greater than 10
@@ -293,12 +338,16 @@ class collect:
         return keys_desc[:n]
             
 
-    def collectCommits(self, owner, repo, token=None, since="2007-01-01T00:00:00Z"):
+    def collectCommits(self, owner, repo, token=None, since="2007-01-01T00:00:00Z") -> pd.DataFrame:
         """
-        This function collects all commits from a repo since a given date and returns a dataframe
-        owner: owner of the repo
-        repo: name of the repo
-        since: date in ISO 8601 format
+        This function collects all commits info from a repo since a given date and returns a pd.DataFrame object
+        Args:
+            owner (str)     : owner of the repo
+            repo (str)      : name of the repo
+            token (str)     : github token, if None, the function will select the token with the highest remaining requests limit
+            since (str)     : date in ISO 8601 format, default is 2007-01-01T00:00:00Z
+        Returns:
+            df (pd.DataFrame): dataframe containing all commits info
         """
         if token is None:
             token = self.getBestKey()
@@ -306,11 +355,15 @@ class collect:
         self.refreshKeysHealth()
         return df
 
-    def getRepoInfo(self, owner, repo, token=None):
+    def getRepoInfo(self, owner, repo, token=None) -> dict:
         """
-        This function collects all commits from a repo since a given date and returns a dataframe
-        owner: owner of the repo
-        repo: name of the repo
+        This function collects all commits from a repo since a given date and returns a pd.DataFrame object
+        Args:
+            owner (str)     : owner of the repo
+            repo (str)      : name of the repo
+            token (str)     : github token, if None, the function will select the token with the highest remaining requests limit
+        Returns:
+            d (dict): dictionary containing the repository info
         """
         if token is None:
             token = self.getBestKey()
