@@ -343,6 +343,40 @@ class collect:
         self.keys_dict[token] = rate_limit_info
         return data_dict
     
+    def getReadme(self, owner, repo, token=None) -> str:
+        if token is None:
+            token = self.getBestKey()
+        url = 'https://api.github.com/graphql'
+        headers = {'Authorization': f'Bearer {token}'}
+        q = """
+            query { 
+                repository(owner: "%s", name: "%s") { 
+                    defaultBranchRef {
+                name
+                }
+             }
+        }
+        """ %(owner, repo)
+        response = requests.post(url, json={'query': q}, headers=headers)
+        result = response.json()
+        default_branch = get_item(result, ['data', 'repository', 'defaultBranchRef', 'name'])
+        if default_branch is None:
+            return None
+        q = """
+                query { 
+                    repository(owner: "%s", name: "%s") { 
+                        object(expression: "%s:README.md") {
+                            ... on Blob {
+                                text
+                            }
+                        }
+                    }
+                }
+            """ %(owner, repo, default_branch)
+        response = requests.post(url, json={'query': q}, headers=headers)
+        result = response.json()
+        return get_item(result, ['data', 'repository', 'object', 'text'])
+    
     def collectForks(self, owner, repo, token=None) -> pd.DataFrame:
         if token is None:
             token = self.getBestKey()
